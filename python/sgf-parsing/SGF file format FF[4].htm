@@ -1,0 +1,393 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<!-- saved from url=(0038)https://www.red-bean.com/sgf/sgf4.html -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=windows-1252"><title>SGF file format FF[4]</title>
+</head>
+<body alink="#FF0000" bgcolor="#FFFFFF" link="#0000FF" text="#000000" vlink="#FF0000" class="vsc-initialized">
+<a href="https://www.red-bean.com/sgf/index.html"><img src="./SGF file format FF[4]_files/head.gif" alt="[SGF FF[4] - Smart Game Format]" border="0"></a> <i>last updated: 2006-08-06</i>
+
+<h1>Contents</h1>
+
+<ul>
+<li><a href="https://www.red-bean.com/sgf/sgf4.html#1">SGF basics</a>
+</li><li><a href="https://www.red-bean.com/sgf/sgf4.html#2">Basic (EBNF) definition</a>
+	<ul><li><a href="https://www.red-bean.com/sgf/sgf4.html#ebnf-def">EBNF definition</a>
+	</li><li><a href="https://www.red-bean.com/sgf/sgf4.html#2.2">Some remarks about properties</a>
+		<ul><li><a href="https://www.red-bean.com/sgf/sgf4.html#2.2.1">Property types</a>
+		</li><li><a href="https://www.red-bean.com/sgf/sgf4.html#2.2.2">Property attributes</a>
+		</li><li><a href="https://www.red-bean.com/sgf/sgf4.html#2.2.3">How to handle unknown/faulty properties</a>
+		</li><li><a href="https://www.red-bean.com/sgf/sgf4.html#2.2.4">Private Properties</a>
+</li></ul></li></ul>
+</li><li><a href="https://www.red-bean.com/sgf/sgf4.html#types">Property Value Types</a>
+	<ul><li><a href="https://www.red-bean.com/sgf/sgf4.html#double">Double</a>
+	</li><li><a href="https://www.red-bean.com/sgf/sgf4.html#text">Text</a>
+	</li><li><a href="https://www.red-bean.com/sgf/sgf4.html#simpletext">SimpleText</a>
+	</li><li><a href="https://www.red-bean.com/sgf/sgf4.html#stone">Stone</a>
+	</li><li><a href="https://www.red-bean.com/sgf/sgf4.html#move/pos">Move / Point</a>
+		<ul><li><a href="https://www.red-bean.com/sgf/sgf4.html#3.5.1">Compressed point lists</a>
+</li></ul></li></ul>
+</li></ul>
+
+<hr size="10" noshade="">
+
+<h1><a name="1">1. SGF basics</a></h1>
+
+SGF is a text-only format (not a binary format).
+<p>
+It contains game trees, with all their nodes and properties, and
+nothing more. Thus the file format reflects the regular internal structure
+of a tree of property lists. There are no exceptions; if a game needs to
+store some information on file with the document, a (game-specific)
+property must be defined for that purpose.
+</p><p>
+<table border="1">
+<tbody><tr><td><img src="./SGF file format FF[4]_files/TA1.gif" alt="[tree (TA1.gif)]">
+</td><td><img src="./SGF file format FF[4]_files/ta3.gif" alt="[user view of tree (ta3.gif)]">
+</td><td rowspan="2" valign="TOP">This tree is written in pre-order as:
+(root(ab(c)(de))(f(ghi)(j)))
+<p>SGF example:
+</p><pre>(;FF[4]C[root](;C[a];C[b](;C[c])
+(;C[d];C[e]))
+(;C[f](;C[g];C[h];C[i])
+(;C[j])))
+</pre>
+</td></tr><tr><td>Example for tree structure
+</td><td>Tree as seen by the user.<br>
+The first line is the main line of play,
+<br> the other lines are variations.
+</td></tr></tbody></table>
+</p><p>
+There are <a href="https://www.red-bean.com/sgf/var.htm">more examples</a> available.
+</p><p>
+<b>Node numbering:</b><br>
+When numbering nodes starting with zero is suggested. Nodes should be
+numbered in the way they are stored in the file.<br>
+Example (of file above): root=0, a=1, b=2, c=3, d=4, e=5, f=6, g=7, 
+h=8, i=9 and j=10.
+</p><p>
+SGF uses the US ASCII char-set for all its property identifiers and
+property values, except SimpleText &amp; Text.  For SimpleText &amp; Text the
+charset is defined using the <a href="https://www.red-bean.com/sgf/properties.html#CA">CA</a> property.
+
+</p><p></p><hr size="10" noshade="">
+<h1><a name="2">2. Basic (EBNF) Definition</a></h1>
+
+The conventions of EBNF are discussed in literature, and on WWW in the
+<a href="http://www.instantweb.com/foldoc/foldoc.cgi?Backus-Naur+Form">Computing Dictionary</a>.
+<br>A quick summary:
+
+<table border="2"><tbody><tr><td bgcolor="#efffff">
+<pre>
+  "..." : terminal symbols
+  [...] : option: occurs at most once
+  {...} : repetition: any number of times, including zero
+  (...) : grouping
+    |   : exclusive or
+ <i>italics</i>: parameter explained at some other place
+</pre>
+</td></tr></tbody></table><p>&nbsp;
+
+</p><h2><a name="ebnf-def">2.1. EBNF Definition</a></h2>
+
+<table border="2"><tbody><tr><td bgcolor="#efefff">
+<pre>
+  Collection = GameTree { GameTree }
+  GameTree   = "(" Sequence { GameTree } ")"
+  Sequence   = Node { Node }
+  Node       = ";" { Property }
+  Property   = PropIdent PropValue { PropValue }
+  PropIdent  = <i>UcLetter</i> { UcLetter }
+  PropValue  = "[" CValueType "]"
+  CValueType = (ValueType | <i>Compose</i>)
+  ValueType  = (<i>None | Number | Real | Double | Color | SimpleText |
+		Text | Point  | Move | Stone</i>)</pre></td></tr>
+</tbody></table><p>
+
+White space (space, tab, carriage return, line feed, vertical tab and so on)
+may appear anywhere between PropValues, Properties, Nodes, Sequences
+and GameTrees.
+<br>
+There are two types of property lists: 'list of' and 'elist of'.
+<table border="2"><tbody><tr><td bgcolor="#efefff">
+<pre>
+<b>'list of':</b>    PropValue { PropValue }
+<b>'elist of':</b>   ((PropValue { PropValue }) | None)
+              In other words elist is list or "[]".
+</pre>
+</td></tr></tbody></table></p><p>
+
+</p><h2><a name="2.2">2.2. Some remarks about properties</a></h2>
+
+Property-identifiers are defined as keywords using only uppercase letters.
+Currently there are no more than two uppercase letters per identifier.
+<p>
+The order of properties in a node is not fixed. It may change every time
+the file is saved and may vary from application to application.
+Furthermore applications should <b>not</b> rely on the order of property
+values. The order of values might change as well.
+</p><p>
+Everybody is free to define additional, private properties, as long as they
+do not interfere with the standard properties defined in this document.
+</p><p>
+Therefore, if one is writing a SGF reader, it is important to skip unknown
+properties. An application should issue a warning message when skipping
+unknown or faulty properties.
+</p><p>
+Only one of each property is allowed per node, e.g. one cannot have two
+comments in one node:
+</p><pre>... ;  C[comment1]  B  [dg]  C[comment2] ; ...</pre>
+This is an error.
+<p>
+Each property has a property type. Property types place restrictions
+on certain properties e.g. in which nodes they are allowed and with
+which properties they may be combined.
+
+</p><h3><a name="2.2.1">2.2.1. Property Types (currently five):</a></h3>
+
+<pre><b>move</b>	Properties of this type concentrate on the move made, not on
+	the position arrived at by this move.
+	Move properties must not be mixed with setup properties within
+	the same node.
+	Note: it's bad style to have move properties in root nodes.
+	(it isn't forbidden though)
+
+<b>setup</b>	Properties of this type concentrate on the current position.
+	Setup properties must not be mixed with move properties within
+	a node.
+
+<b>root</b>	Root properties may only appear in root nodes. Root nodes are
+	the first nodes of <a href="https://www.red-bean.com/sgf/sgf4.html#ebnf-def">gametrees</a>, which are direct descendants from a
+	<a href="https://www.red-bean.com/sgf/sgf4.html#ebnf-def">collection</a> (i.e. not gametrees within other gametrees).
+	They define some global 'attributes' such as board-size, kind
+	of game, used file format etc.
+
+<b>game-info</b>
+	Game-info properties provide some information about the game
+	played (e.g. who, where, when, what, result, rules, etc.).
+	These properties are usually stored in root nodes.
+	When merging a set of games into a single <a href="https://www.red-bean.com/sgf/sgf4.html#ebnf-def">gametree</a>, game infos
+	are stored at the nodes where a game first becomes distinguishable
+	from all other games in the tree.
+
+        A node containing game-info properties is called a game-info node.
+        There may be only one game-info node on any path within the tree,
+        i.e. if some game-info properties occur in one node there may not be
+        any further game-info properties in following nodes:
+        a) on the path from the root node to this node.
+        b) in the subtree below this node.
+
+<b>-</b>	no type. These properties have no special types and may appear
+	anywhere in a <a href="https://www.red-bean.com/sgf/sgf4.html#ebnf-def">collection</a>.
+</pre>
+
+Because of the strict distinction between move and setup properties
+nodes could also be divided into two classes: move-nodes and setup-nodes.
+This is important for databases, converting to/from ISHI-format and
+for some special applications.
+
+<h3><a name="2.2.2">2.2.2. Property attributes (currently only one)</a></h3>
+
+<pre><b><a name="inherit">inherit</a></b>
+	Properties having this attribute affect not only the node containing
+	these properties but also ALL subsequent child nodes as well until
+	a new setting is encountered or the setting gets cleared.
+	I.e. once set all children (of this node) inherit the values of the
+	'inherit' type properties.
+	E.g. VW restricts the view not only of the current node, but
+	of all successors nodes as well. Thus a VW at the beginning of a
+	variation is valid for the whole variation tree.
+	Inheritance stops, if either a new property is encountered and those
+	values are inherited from now on, or the property value gets cleared,
+	typically by an empty value, e.g. VW[].
+</pre>
+
+<h3><a name="2.2.3">2.2.3. How to handle unknown/faulty properties</a></h3>
+
+<ul>
+<li>Unknown properties and their values should be preserved.<br>
+If an application isn't able to preserve unknown properties, then it
+has to display a warning message.
+</li><li>Illegally formatted game-info properties should be corrected if possible,
+otherwise preserved.
+</li><li>Other illegally formatted properties should be corrected if possible,
+otherwise deleted.<br>
+An application has to display a warning message, if it deletes illegally
+formatted properties.
+</li></ul>
+
+<h3><a name="2.2.4">2.2.4. Private Properties</a></h3>
+
+Applications may define their own private properties. Some restrictions apply.
+<p><b>Property identifier:</b> private properties <b>must not</b> use an
+identifier used by one of the standard properties. You have to use a new
+identifier instead. The identifier should consist of up to two uppercase
+letters. SGF doesn't require to limit the identifier to two letters, but
+some applications could break otherwise.
+</p><p><b>Property value:</b> private properties may use one of the value types
+defined in this document or define their own value type. When using
+a private value type the application has to escape <b>every</b> <tt>"]"</tt>
+with a leading <tt>"\"</tt>. Otherwise the file would become unparseable.
+Should the value type be a combination of two simpler types then it's
+suggested that your application uses the <b>Compose</b> type.
+
+</p><p>
+</p><hr size="10" noshade="">
+
+<h1><a name="types">3. Property Value Types</a></h1>
+
+<table border="2"><tbody><tr><td bgcolor="#efefff">
+<pre>
+  UcLetter   = "A".."Z"
+  Digit      = "0".."9"
+  None       = ""
+
+  Number     = [("+"|"-")] Digit { Digit }
+  Real       = Number ["." Digit { Digit }]
+
+  Double     = ("1" | "2")
+  Color      = ("B" | "W")
+
+  SimpleText = { any character (handling see below) }
+  Text       = { any character (handling see below) }
+
+  Point      = <i>game-specific</i>
+  Move       = <i>game-specific</i>
+  Stone      = <i>game-specific</i>
+
+  Compose    = <i>ValueType</i> ":" <i>ValueType</i>
+</pre>
+</td></tr></tbody></table>
+
+<h2><a name="double">3.1. Double</a></h2>
+
+Double values are used for annotation properties. They are called Double
+because the value is either simple or emphasized.
+A value of '1' means 'normal'; '2' means that it is emphasized.
+<br>Example:
+<br>GB[1] could be displayed as: Good for black
+<br>GB[2] could be displayed as: Very good for black
+
+<h2><a name="text">3.2. Text</a></h2>
+
+Text is a formatted text. White spaces other than linebreaks
+are converted to space (e.g. no tab, vertical tab, ..).
+<p>
+<b>Formatting</b>:<br>
+<i>Soft line break:</i> linebreaks preceded by a <tt>"\"</tt>
+(soft linebreaks are converted to <tt>""</tt>, i.e. they are removed)<br>
+<i>Hard line breaks:</i> any other linebreaks encountered
+</p><p>
+<b>Attention</b>:
+a single linebreak is represented differently on different systems, e.g.
+<tt>"LFCR"</tt> for DOS, <tt>"LF"</tt> on Unix.
+An application should be able to deal with following linebreaks:
+LF, CR, LFCR, CRLF.<br>
+</p><p>
+Applications must be able to handle Texts of any size.
+The text should be displayed the way it is, though long lines may be
+word-wrapped, if they don't fit the display.
+</p><p>
+<b>Escaping:</b> <tt>"\"</tt> is the escape character. Any char following
+<tt>"\"</tt> is inserted verbatim (exception: whitespaces still have to
+be converted to space!).
+Following chars have to be escaped, when used in Text: <tt>"]"</tt>,
+<tt>"\"</tt> and <tt>":"</tt> (only if used in compose data type).
+
+</p><p><b>Encoding</b>: texts can be encoded in different charsets. See <a href="https://www.red-bean.com/sgf/properties.html#CA">CA</a> property.
+
+</p><h3>3.2.1. Example:</h3>
+
+<pre>C[Meijin NR: yeah, k4 is won\
+derful
+sweat NR: thank you! :\)
+dada NR: yup. I like this move too. It's a move only to be expected from a pro. I really like it :)
+jansteen 4d: Can anyone\
+ explain [me\] k4?]</pre>
+could be rendered as:
+<pre>Meijin NR: yeah, k4 is wonderful
+sweat NR: thank you! :)
+dada NR: yup. I like this move too. It's a move only to be expected
+from a pro. I really like it :)
+jansteen 4d: Can anyone explain [me] k4?</pre>
+
+<h2><a name="simpletext">3.3. SimpleText</a></h2>
+
+SimpleText is a simple string. Whitespaces other than space must be
+converted to space, i.e. there's no newline! Applications must be able
+to handle SimpleTexts of any size.
+<p>
+<b>Formatting</b>: linebreaks preceded by a <tt>"\"</tt> are converted to
+<tt>""</tt>, i.e. they are removed (same as Text type). All other linebreaks
+are converted to space (no newline on display!!).
+</p><p>
+<b>Escaping</b> (same as Text type): <tt>"\"</tt> is the escape
+character. Any char following
+<tt>"\"</tt> is inserted verbatim (exception: whitespaces still have to be
+converted to space!). Following chars have to be escaped, when used in
+SimpleText: <tt>"]"</tt>, <tt>"\"</tt> and <tt>":"</tt>
+(only if used in compose data type).
+
+</p><p><b>Encoding</b> (same as Text type): SimpleTexts can be encoded in different charsets. See <a href="https://www.red-bean.com/sgf/properties.html#CA">CA</a> property.
+
+
+</p><h2><a name="stone">3.4. Stone</a></h2>
+
+This type is used to specify the point and the piece that should be placed at
+that point. If a game doesn't have a distinguishable set of pieces (figures)
+like e.g. Go (GM[1]) the Stone type is reduced to the Point type below, e.g.
+"list of stone" becomes "list of point" for that game.
+<br><b>Note:</b> if a property allows "list of stone" a reduction to
+"list of point" allows compressed point lists.
+
+<ul>
+<li><i>Go, Othello, Gomuku, Renju:</i> Stone becomes Point
+</li><li><i>Chess</i>
+</li><li><i>Nine Men's Morris</i>
+</li><li><i>Chinese chess</i>
+</li><li><i>Shogi</i>
+</li><li><i>Backgammon, Lines of Action, Hex, Gess:</i> Stone becomes Point
+</li><li><i>Amazons</i>
+</li><li><i><a href="https://www.red-bean.com/sgf/octi.html#types">Octi</a></i>
+</li></ul>
+
+<h2><a name="move/pos">3.5. Move / Point</a></h2>
+
+These two types are game specific.
+<ul>
+<li><a href="https://www.red-bean.com/sgf/go.html#types">Go</a>
+</li><li>Othello
+</li><li>Chess
+</li><li>Gomoku, Renju
+</li><li>Nine Men's Morris
+</li><li><a href="https://www.red-bean.com/sgf/backgammon.html#types">Backgammon</a>
+</li><li>Chinese chess
+</li><li>Shogi
+</li><li><a href="https://www.red-bean.com/sgf/loa.html#types">Lines of Action</a>
+</li><li><a href="https://www.red-bean.com/sgf/hex.html#types">Hex</a>
+</li><li><a href="https://www.red-bean.com/sgf/amazons.html#types">Amazons</a>
+</li><li><a href="https://www.red-bean.com/sgf/gess.html#types">Gess</a>
+</li><li><a href="https://www.red-bean.com/sgf/octi.html#types">Octi</a>
+</li></ul>
+
+<h3><a name="3.5.1">3.5.1. Compressed point lists</a></h3>
+
+The PropValue type <i>"list of point"</i> or <i>"elist of point"</i>
+may be compressed.<br>
+Compressing is done by specifying rectangles instead of listing
+every single point in the rectangle. Rectangles are specified by using the
+upper left and lower right corner of the rectangle.
+<pre><b>Definition:</b>
+<i>List of point</i>: list of (point | composition of point ":" point)
+For the composed type the first point specifies the upper left corner,
+the second point the lower right corner of the rectangle.
+1x1 Rectangles are illegal - they've to be listed as single point.
+</pre>
+The definition of 'point list' allows both single point [xy] and rectangle
+[ul:lr] specifiers in any order and combination. However the points have
+to be unique, i.e. overlap and duplication are forbidden.
+<p>
+To get an idea have a look at an <a href="https://www.red-bean.com/sgf/DD_VW.html">example</a>.
+</p><p>
+
+
+
+</p></body></html>
